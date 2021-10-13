@@ -11,45 +11,79 @@ import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers.IO
+import kotlinx.coroutines.Dispatchers.Main
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
 
+    private lateinit var rvMain: RecyclerView
+    private lateinit var rvAdapter: RVAdapter
     lateinit var bAdd: Button
+    lateinit var bUpdateDeleteUser: Button
+
+    private lateinit var users: ArrayList<user>
+
+    private val apiInterface = APIClient().getClient()?.create(APIInterface::class.java)
+
+    private lateinit var progressDialog: ProgressDialog
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val bAdd = findViewById<View>(R.id.badd)
+        users = arrayListOf()
+
+        rvMain = findViewById(R.id.rvMain)
+        rvAdapter = RVAdapter(users)
+        rvMain.adapter = rvAdapter
+        rvMain.layoutManager = LinearLayoutManager(this)
+
+        bAdd = findViewById(R.id.badd)
         bAdd.setOnClickListener { addnew() }
 
-        val responseText = findViewById<TextView>(R.id.textView)
+        bUpdateDeleteUser = findViewById(R.id.bUpdateDeleteUser)
+        bUpdateDeleteUser.setOnClickListener { UpdateDeleteUser() }
 
-        val apiInterface = APIClient().getClient()?.create(APIInterface::class.java)
+        //val apiInterface = APIClient().getClient()?.create(APIInterface::class.java)
 
-        val progressDialog = ProgressDialog(this@MainActivity)
+        progressDialog = ProgressDialog(this@MainActivity)
         progressDialog.setMessage("Please wait")
         progressDialog.show()
 
+        CoroutineScope(IO).launch {
+            withContext(Main){
+                getUsers()
+            }
+        }
+    }
+        private fun getUsers(){
         if (apiInterface != null) {
+          //  val responseText = findViewById<TextView>(R.id.textView)
+            apiInterface.doGetUsersList().enqueue(object :Callback<ArrayList<user>> {
 
-            apiInterface.doGetUsersList()?.enqueue(object :Callback<List<Users.UserDetails?>> {
-
-                override fun onResponse(call: Call<List<Users.UserDetails?>>?, response: Response<List<Users.UserDetails?>>?) {
+                override fun onResponse(call: Call<ArrayList<user>>, response: Response<ArrayList<user>>) {
                     progressDialog.dismiss()
-                    var displayResponse = ""
-                  //  val resource: <list<Users.UserDetails?>> = response.body()
+                   // var displayResponse = ""
+                    users = response.body()!!
 
-                    for (user in response?.body()!!) {
-                         displayResponse = displayResponse +user?.name+ "\n"+user?.location + "\n"+"\n"
-                    }
-                    responseText.text = displayResponse
+//                    displayResponse = users.a
+//                    responseText.text = displayResponse
+                    rvAdapter.update(users)
+//                    for (user in response.body()!!) {
+//                         displayResponse = displayResponse +user?.name+ "\n"+user?.location + "\n"+"\n"
+//                    }
+
                 }
 
-                override fun onFailure(call: Call<List<Users.UserDetails?>>, t: Throwable) {
+                override fun onFailure(call: Call<ArrayList<user>>, t: Throwable) {
                     progressDialog.dismiss()
                     Toast.makeText(applicationContext, ""+t.message, Toast.LENGTH_SHORT).show()
                 }
@@ -57,9 +91,19 @@ class MainActivity : AppCompatActivity() {
 
         }
     }
-//view: android.view.View
+
     fun addnew() {
         intent = Intent(applicationContext, NewUser::class.java)
+        val userNames = arrayListOf<String>()
+        for(user in users){
+            userNames.add(user.name.lowercase())
+        }
+        intent.putExtra("userNames", userNames)
+        startActivity(intent)
+    }
+
+    fun UpdateDeleteUser() {
+        intent = Intent(applicationContext, UpdateDeleteUser::class.java)
         startActivity(intent)
     }
 

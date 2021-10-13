@@ -12,6 +12,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.POST_Request_Practice">
         <activity
+            android:name=".UpdateDeleteUser"
+            android:exported="true" />
+        <activity
             android:name=".NewUser"
             android:exported="true" />
         <activity

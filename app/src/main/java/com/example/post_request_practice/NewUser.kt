@@ -1,5 +1,6 @@
 package com.example.post_request_practice
 
+import android.app.ProgressDialog
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -18,40 +19,64 @@ class NewUser : AppCompatActivity() {
     lateinit var bSave: Button
     lateinit var bView: Button
 
+    private lateinit var progressDialog: ProgressDialog
+
+    private lateinit var existingUsers: ArrayList<String>
+
+    private val apiInterface by lazy { APIClient().getClient()?.create(APIInterface::class.java) }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_new_user)
 
-        val etName = findViewById<View>(R.id.etName) as EditText
-        val etLocation = findViewById<View>(R.id.etLocation) as EditText
-        val bSave = findViewById<View>(R.id.bSave) as Button
-        val bView = findViewById<View>(R.id.bView) as Button
+        existingUsers = intent.extras!!.getStringArrayList("userNames")!!
+
+        etName = findViewById<View>(R.id.etName) as EditText
+        etLocation = findViewById<View>(R.id.etLocation) as EditText
+        bSave = findViewById<View>(R.id.bSave) as Button
+        bView = findViewById<View>(R.id.bView) as Button
 
         bSave.setOnClickListener {
-            var adding = Users.UserDetails(etName.text.toString(), etLocation.text.toString())
-
-            addSingleuser(adding, onResult = {
-                etName.setText("")
-                etLocation.setText("")
-                Toast.makeText(applicationContext, "Save Success!", Toast.LENGTH_SHORT).show()
-            })
+            if(etName.text.isNotEmpty() && etLocation.text.isNotEmpty()){
+                addSingleuser()
+            }else{
+                Toast.makeText(this, "One or more fields is empty", Toast.LENGTH_LONG).show()
+            }
+//            var adding = Users.UserDetails(etName.text.toString(), etLocation.text.toString(),0)
+//
+//            addSingleuser(adding, onResult = {
+//                etName.setText("")
+//                etLocation.setText("")
+//                Toast.makeText(applicationContext, "Save Success!", Toast.LENGTH_SHORT).show()
+//            })
         }
         bView.setOnClickListener { viewusers() }
     }
 
-    private fun addSingleuser(adding: Users.UserDetails, onResult: () -> Unit) {
-
-        val apiInterface = APIClient().getClient()?.create(APIInterface::class.java)
+    private fun addSingleuser() {
+        progressDialog = ProgressDialog(this)
+        progressDialog.setMessage("Please Wait")
+        progressDialog.show()
 
         if (apiInterface != null) {
-            apiInterface.addUser(adding)?.enqueue(object : Callback<Users.UserDetails?> {
+           apiInterface!!.addUser(
+               user
+               (etName.text.toString().uppercase(),
+               etLocation.text.toString(),
+               0)
+            ).enqueue(object: Callback<user> {
 
-                override fun onResponse(call: Call<Users.UserDetails?>, response: Response<Users.UserDetails?>) {
-                    onResult()
+                override fun onResponse(call: Call<user>, response: Response<user>) {
+                    progressDialog.dismiss()
+                    if(!existingUsers.contains(etName.text.toString().lowercase())){
+                        intent = Intent(applicationContext, MainActivity::class.java)
+                        startActivity(intent)
+                    }else{
+                        Toast.makeText(this@NewUser, "Celebrity Already Exists", Toast.LENGTH_LONG).show()
+                    }
                 }
 
-                override fun onFailure(call: Call<Users.UserDetails?>, t: Throwable) {
-                    onResult()
+                override fun onFailure(call: Call<user>, t: Throwable) {
                     Toast.makeText(applicationContext, "Error!", Toast.LENGTH_SHORT).show()
                 }
             })
